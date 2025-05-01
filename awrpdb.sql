@@ -81,10 +81,10 @@ c_dbid CONSTANT NUMBER := :dbid;
  c_start_snap_id CONSTANT NUMBER := :bid;
  c_end_snap_id CONSTANT NUMBER := :eid;
  c_awr_options CONSTANT NUMBER := &&NO_ADDM;
- c_report_type CONSTANT CHAR(4):= '&&AWR_FORMAT';
- v_awr_reportname VARCHAR2(100);
- v_report_suffix CHAR(5);
- v_db_name varchar2(10);
+ c_report_type CONSTANT CHAR(8):= '&&AWR_FORMAT';
+ v_awr_reportname VARCHAR2(300);
+ v_report_suffix CHAR(10);
+ v_db_name varchar2(20);
  
 CURSOR c_snapshots IS
  select inst_num, start_snap_id, end_snap_id
@@ -174,44 +174,3 @@ undefine OUTFILE_NAME
  
 set feedback 6 verify on lines 100 pages 45	
 
-
-
-
-
-
-
-
-
-
-set serveroutput on size 1000000 trims on
-set verify off lines 300 pages 0 feed off head off
-spool generate_awr.sql
-declare
-bsnap number;
-esnap number;
-begin
-for instnm in (select distinct instance_name, instance_number from dba_hist_database_instance) loop
-bsnap := 0;
-esnap := 0;
-for x in (select di.dbid, di.instance_name, di.db_name, s.snap_id, di.instance_number, to_char(s.end_interval_time,'DDMONYY_HH24MI') end_interval, to_char(s.begin_interval_time,'DDMONYY_HH24MI') start_interval
-   from dba_hist_snapshot s, dba_hist_database_instance di
-   where s.dbid = di.dbid
-   and s.instance_number = di.instance_number
-   and di.startup_time = s.startup_time and di.instance_name=instnm.instance_name
-   and (
-       s.end_interval_time between to_date('08-MAR-23 00:00:00','DD-MON-YY HH24:MI:SS') and to_date('08-MAR-23 23:59:00','DD-MON-YY HH24:MI:SS')
-    ) order by snap_id) loop
-esnap := x.snap_id;
-if (bsnap <> 0) then
-dbms_output.put_line('set lines 1500');
-dbms_output.put_line('set heading off pages 0;');
-dbms_output.put_line('set termout off trims on;');
-dbms_output.put_line('spool awrrpt_' || x.instance_number || '_' || x.start_interval || '_' || x.end_interval || '.html');
-dbms_output.put_line('select output from table(dbms_workload_repository.awr_report_html(' || x.dbid || ',' || x.instance_number || ',' || bsnap || ',' || esnap || ',0));');
-dbms_output.put_line('spool off;');
-end if;
-bsnap := esnap;
-end loop;
-end loop;
-end;
-/
